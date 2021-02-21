@@ -8,6 +8,8 @@ const BLACK = "#000000";
 const WHITE = "#FFFFFF";
 const PI = Math.PI;
 const TWO_PI = PI * 2;
+const MAX_ZOOM = 3.0;
+const MIN_ZOOM = 0.3;
 //#endregion
 
 canvasScale = 1;
@@ -94,13 +96,19 @@ function handleMouseMove(e) {
 function handleMouseWheel(e) {
   const dY = e.wheelDeltaY;
   const scaleFactor = 0.1;
-  dY > 0 ? canvasScale = 1 + scaleFactor : canvasScale = 1 - scaleFactor;
+  let scale = 1;
+  dY > 0 ? scale += scaleFactor : scale -= scaleFactor;
 
   // scene graph or drawimage()
-  CTX.scale(canvasScale, canvasScale);
-
-  // TODO: temp
-  redrawObjects(true);
+  acs = canvasScale * scale;
+  if (between(acs, MIN_ZOOM, MAX_ZOOM)) {
+    canvasScale = acs;
+    CTX.scale(scale, scale);
+    // TODO: temp
+    redrawObjects(true);
+  } else {
+    console.log("At max or min zoom");
+  }
 }
 
 function draw(e) {
@@ -126,8 +134,8 @@ function createSticky(e) {
 
 function pan(e) {
   const panRate = 0.5;
-  x = panRate * Math.abs(lastPanX - e.offsetX );
-  y = panRate * Math.abs(lastPanY - e.offsetY );
+  x = panRate * Math.abs(lastPanX - e.offsetX);
+  y = panRate * Math.abs(lastPanY - e.offsetY);
   let left = false;
   let up = false;
   if (lastPanX) {
@@ -163,6 +171,15 @@ function translate(x, y) {
   CTX.translate(x, y);
   x ? panOffsetX += x : null;
   y ? panOffsetY += y : null;
+}
+
+// util operator
+function between(val, lower, upper, equiv = true) {
+  if (equiv) {
+    if (val >= lower && val <= upper) return true;
+  }
+  if (val > lower && val < upper) return true;
+  return false;
 }
 
 // TODO: too slow - may be better to save drawing as an image 
