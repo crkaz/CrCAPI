@@ -8,6 +8,8 @@ const BLACK = "#000000";
 const WHITE = "#FFFFFF";
 const PI = Math.PI;
 const TWO_PI = PI * 2;
+const MAX_ZOOM = 3.0;
+const MIN_ZOOM = 0.3;
 //#endregion
 
 canvasScale = 1;
@@ -94,26 +96,31 @@ function handleMouseMove(e) {
 function handleMouseWheel(e) {
   const dY = e.wheelDeltaY;
   const scaleFactor = 0.1;
-  dY > 0 ? canvasScale = 1 + scaleFactor : canvasScale = 1 - scaleFactor;
+  let scale = 1;
+  dY > 0 ? scale += scaleFactor : scale -= scaleFactor;
 
-  // scene graph or drawimage()
-  CTX.scale(canvasScale, canvasScale);
-
-  // TODO: temp
-  redrawObjects(true);
+  // scene graph or drawimage() ?
+  acs = canvasScale * scale;
+  if (between(acs, MIN_ZOOM, MAX_ZOOM)) {
+    canvasScale = acs;
+    CTX.scale(scale, scale);
+    // TODO: temp
+    redrawObjects(true);
+  }
 }
 
 function draw(e) {
-  // stop the function if they are not mouse down
   if (!drawing) return;
   CTX.strokeStyle = getColour();
   CTX.beginPath();
-  !lastDrawX ? [lastDrawX, lastDrawY] = [e.offsetX - panOffsetX, e.offsetY - panOffsetY] : null;  // Ensure we start drawing from where user clicks rather than origin.
+  let x = (e.offsetX * (1 / canvasScale)) - panOffsetX;
+  let y = (e.offsetY * (1 / canvasScale)) - panOffsetY;
+  !lastDrawX ? [lastDrawX, lastDrawY] = [x, y] : null;  // Ensure we start drawing from where user clicks rather than origin.
   drawCoords.push({ x: lastDrawX, y: lastDrawY });
   CTX.moveTo(lastDrawX, lastDrawY);
-  CTX.lineTo(e.offsetX - panOffsetX, e.offsetY - panOffsetY);
+  CTX.lineTo(x, y);
   CTX.stroke();
-  [lastDrawX, lastDrawY] = [e.offsetX - panOffsetX, e.offsetY - panOffsetY];
+  [lastDrawX, lastDrawY] = [x, y];
 }
 
 // TODO: doesn't persist with redraw (scene graph?)
@@ -126,8 +133,8 @@ function createSticky(e) {
 
 function pan(e) {
   const panRate = 0.5;
-  x = panRate * Math.abs(lastPanX - e.offsetX );
-  y = panRate * Math.abs(lastPanY - e.offsetY );
+  x = panRate * Math.abs(lastPanX - e.offsetX);
+  y = panRate * Math.abs(lastPanY - e.offsetY);
   let left = false;
   let up = false;
   if (lastPanX) {
@@ -165,11 +172,21 @@ function translate(x, y) {
   y ? panOffsetY += y : null;
 }
 
+// util operator
+function between(val, lower, upper, equiv = true) {
+  if (equiv) {
+    if (val >= lower && val <= upper) return true;
+  }
+  if (val > lower && val < upper) return true;
+  return false;
+}
+
 // TODO: too slow - may be better to save drawing as an image 
 function redrawObjects(force = false) {
   if (!force && panRedrawCounter++ % panRedrawInterval !== 0) return;
 
-  CTX.clearRect(0 - panOffsetX, 0 - panOffsetY, WIDTH, WIDTH);
+  const virtualWidth = WIDTH * (1 / canvasScale);
+  CTX.clearRect(0 - panOffsetX , 0 - panOffsetY, virtualWidth, virtualWidth);
 
   CTX.strokeStyle = BLACK; // TODO: drawn objects don't currently retain colour info.
   // TODO: can complexity be simplified.
